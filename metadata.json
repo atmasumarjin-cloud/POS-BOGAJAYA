@@ -1,0 +1,6 @@
+{
+  "name": "BOGAJAYA POS & Accurate ERP",
+  "description": "Sistem Kasir POS Tunai, Pemindai Barcode Gudang, Akuntansi Accurate Real-Time (Laba Rugi & Jurnal Otomatis), Cetak Struk Bluetooth, Notifikasi WhatsApp, dan Katalog Lengkap Toko Bogajaya Surabaya.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

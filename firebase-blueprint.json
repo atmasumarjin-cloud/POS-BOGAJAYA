@@ -1,0 +1,156 @@
+{
+  "entities": {
+    "ProductRecord": {
+      "title": "ProductRecord",
+      "description": "Synchronized inventory & pricing state for a Bogajaya SKU in Cloud Firestore",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "productId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "sku": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "barcode": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "price": { "type": "number" },
+        "costPrice": { "type": "number" },
+        "stockPusat": { "type": "integer" },
+        "stockRungkut": { "type": "integer" },
+        "stockSidoarjo": { "type": "integer" },
+        "minStock": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "productId", "sku", "barcode", "name", "category", "price", "costPrice", "stockPusat", "stockRungkut", "stockSidoarjo", "minStock", "createdAt", "updatedAt"]
+    },
+    "PosTransaction": {
+      "title": "PosTransaction",
+      "description": "Cash or non-cash POS sale transaction with COGS and tax breakdown",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "invoiceNo": { "type": "string", "minLength": 3, "maxLength": 64 },
+        "branch": { "type": "string", "enum": ["Pusat Genteng", "Cabang Rungkut", "Gudang Sidoarjo"] },
+        "customerId": { "type": "string", "maxLength": 64 },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "customerPhone": { "type": "string", "maxLength": 32 },
+        "paymentMethod": { "type": "string", "enum": ["Tunai", "QRIS", "Transfer Bank"] },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "total": { "type": "number" },
+        "totalCogs": { "type": "number" },
+        "cashReceived": { "type": "number" },
+        "changeAmount": { "type": "number" },
+        "itemCount": { "type": "integer" },
+        "itemsSummary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "whatsappSent": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["completed", "voided"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "invoiceNo", "branch", "customerName", "paymentMethod", "subtotal", "discount", "taxAmount", "total", "totalCogs", "cashReceived", "changeAmount", "itemCount", "itemsSummary", "whatsappSent", "status", "createdAt", "updatedAt"]
+    },
+    "CustomerProfile": {
+      "title": "CustomerProfile",
+      "description": "Loyal Bogajaya customer record with points and WhatsApp contact",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "phone": { "type": "string", "minLength": 6, "maxLength": 32 },
+        "email": { "type": "string", "maxLength": 160 },
+        "tier": { "type": "string", "enum": ["Reguler", "Silver", "Gold", "VIP"] },
+        "points": { "type": "integer" },
+        "totalSpent": { "type": "number" },
+        "visitCount": { "type": "integer" },
+        "address": { "type": "string", "maxLength": 300 },
+        "notes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "name", "phone", "tier", "points", "totalSpent", "visitCount", "createdAt", "updatedAt"]
+    },
+    "JournalEntry": {
+      "title": "JournalEntry",
+      "description": "Accurate-compatible double-entry accounting journal record",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "journalNo": { "type": "string", "minLength": 3, "maxLength": 64 },
+        "sourceType": { "type": "string", "enum": ["POS_SALE", "RESTOCK", "EXPENSE", "TAX_PAYMENT", "ADJUSTMENT"] },
+        "referenceNo": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "debitAccount": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "creditAccount": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "amount": { "type": "number" },
+        "branch": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "journalNo", "sourceType", "referenceNo", "description", "debitAccount", "creditAccount", "amount", "branch", "createdAt", "updatedAt"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Warehouse barcode stock movement (in, out, transfer, opname)",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "productId": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "sku": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "productName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "movementType": { "type": "string", "enum": ["IN", "OUT", "TRANSFER", "OPNAME"] },
+        "warehouse": { "type": "string", "enum": ["Pusat Genteng", "Cabang Rungkut", "Gudang Sidoarjo"] },
+        "quantityDelta": { "type": "integer" },
+        "unitCost": { "type": "number" },
+        "note": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "productId", "sku", "productName", "movementType", "warehouse", "quantityDelta", "unitCost", "createdAt", "updatedAt"]
+    },
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Cloud sync & printer/WhatsApp preferences per store owner",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "storeName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "activeBranch": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "taxRatePercent": { "type": "number" },
+        "printerPaperWidth": { "type": "string", "enum": ["58mm", "80mm"] },
+        "autoPrintReceipt": { "type": "boolean" },
+        "autoWhatsappReceipt": { "type": "boolean" },
+        "costingMethod": { "type": "string", "enum": ["FIFO", "AVERAGE"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "storeName", "activeBranch", "taxRatePercent", "printerPaperWidth", "autoPrintReceipt", "autoWhatsappReceipt", "costingMethod", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/pos_products/{productDocId}": {
+      "schema": { "$ref": "#/entities/ProductRecord" },
+      "description": "Cloud-synced stock and price overrides for Bogajaya products"
+    },
+    "/pos_transactions/{txId}": {
+      "schema": { "$ref": "#/entities/PosTransaction" },
+      "description": "Completed and voided POS transactions"
+    },
+    "/pos_customers/{customerId}": {
+      "schema": { "$ref": "#/entities/CustomerProfile" },
+      "description": "Loyal Bogajaya customer records (PII protected)"
+    },
+    "/pos_journals/{journalId}": {
+      "schema": { "$ref": "#/entities/JournalEntry" },
+      "description": "Accurate double-entry ledger entries"
+    },
+    "/pos_stock_movements/{movementId}": {
+      "schema": { "$ref": "#/entities/StockMovement" },
+      "description": "Warehouse barcode stock-in, stock-out, transfer, and opname logs"
+    },
+    "/pos_settings/{userId}": {
+      "schema": { "$ref": "#/entities/StoreSettings" },
+      "description": "Per-owner POS, thermal printer, and Accurate ERP configuration"
+    }
+  }
+}

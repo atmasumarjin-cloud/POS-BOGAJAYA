@@ -1,0 +1,316 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3 Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'atmasumarjin@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwnerData(data) {
+      return isSignedIn() && data.ownerUid == request.auth.uid;
+    }
+
+    // Validation Helpers (Phase 4)
+    function isValidProduct(data) {
+      return data.keys().hasAll([
+        'ownerUid', 'productId', 'sku', 'barcode', 'name', 'category',
+        'price', 'costPrice', 'stockPusat', 'stockRungkut', 'stockSidoarjo', 'minStock',
+        'createdAt', 'updatedAt'
+      ]) && data.keys().hasOnly([
+        'ownerUid', 'productId', 'sku', 'barcode', 'name', 'category',
+        'price', 'costPrice', 'stockPusat', 'stockRungkut', 'stockSidoarjo', 'minStock',
+        'createdAt', 'updatedAt'
+      ])
+      && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+      && isValidId(data.productId)
+      && data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 64
+      && data.barcode is string && data.barcode.size() >= 4 && data.barcode.size() <= 32
+      && data.name is string && data.name.size() >= 1 && data.name.size() <= 200
+      && data.category is string && data.category.size() >= 1 && data.category.size() <= 80
+      && data.price is number && data.price >= 0 && data.price <= 1000000000
+      && data.costPrice is number && data.costPrice >= 0 && data.costPrice <= 1000000000
+      && data.stockPusat is int && data.stockPusat >= 0 && data.stockPusat <= 1000000
+      && data.stockRungkut is int && data.stockRungkut >= 0 && data.stockRungkut <= 1000000
+      && data.stockSidoarjo is int && data.stockSidoarjo >= 0 && data.stockSidoarjo <= 1000000
+      && data.minStock is int && data.minStock >= 0 && data.minStock <= 100000
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll([
+        'ownerUid', 'invoiceNo', 'branch', 'customerName', 'paymentMethod',
+        'subtotal', 'discount', 'taxAmount', 'total', 'totalCogs',
+        'cashReceived', 'changeAmount', 'itemCount', 'itemsSummary',
+        'whatsappSent', 'status', 'createdAt', 'updatedAt'
+      ]) && data.keys().hasOnly([
+        'ownerUid', 'invoiceNo', 'branch', 'customerId', 'customerName', 'customerPhone',
+        'paymentMethod', 'subtotal', 'discount', 'taxAmount', 'total', 'totalCogs',
+        'cashReceived', 'changeAmount', 'itemCount', 'itemsSummary',
+        'whatsappSent', 'status', 'createdAt', 'updatedAt'
+      ])
+      && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+      && data.invoiceNo is string && data.invoiceNo.size() >= 3 && data.invoiceNo.size() <= 64
+      && data.branch in ['Pusat Genteng', 'Cabang Rungkut', 'Gudang Sidoarjo']
+      && (!('customerId' in data) || (data.customerId is string && data.customerId.size() <= 64))
+      && data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 120
+      && (!('customerPhone' in data) || (data.customerPhone is string && data.customerPhone.size() <= 32))
+      && data.paymentMethod in ['Tunai', 'QRIS', 'Transfer Bank']
+      && data.subtotal is number && data.subtotal >= 0
+      && data.discount is number && data.discount >= 0
+      && data.taxAmount is number && data.taxAmount >= 0
+      && data.total is number && data.total >= 0
+      && data.totalCogs is number && data.totalCogs >= 0
+      && data.cashReceived is number && data.cashReceived >= 0
+      && data.changeAmount is number && data.changeAmount >= 0
+      && data.itemCount is int && data.itemCount >= 1 && data.itemCount <= 10000
+      && data.itemsSummary is string && data.itemsSummary.size() >= 1 && data.itemsSummary.size() <= 1000
+      && data.whatsappSent is bool
+      && data.status in ['completed', 'voided']
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll([
+        'ownerUid', 'name', 'phone', 'tier', 'points', 'totalSpent', 'visitCount', 'createdAt', 'updatedAt'
+      ]) && data.keys().hasOnly([
+        'ownerUid', 'name', 'phone', 'email', 'tier', 'points', 'totalSpent', 'visitCount', 'address', 'notes', 'createdAt', 'updatedAt'
+      ])
+      && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+      && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+      && data.phone is string && data.phone.size() >= 6 && data.phone.size() <= 32
+      && (!('email' in data) || (data.email is string && data.email.size() <= 160))
+      && data.tier in ['Reguler', 'Silver', 'Gold', 'VIP']
+      && data.points is int && data.points >= 0 && data.points <= 10000000
+      && data.totalSpent is number && data.totalSpent >= 0
+      && data.visitCount is int && data.visitCount >= 0 && data.visitCount <= 1000000
+      && (!('address' in data) || (data.address is string && data.address.size() <= 300))
+      && (!('notes' in data) || (data.notes is string && data.notes.size() <= 300))
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidJournal(data) {
+      return data.keys().hasAll([
+        'ownerUid', 'journalNo', 'sourceType', 'referenceNo', 'description',
+        'debitAccount', 'creditAccount', 'amount', 'branch', 'createdAt', 'updatedAt'
+      ]) && data.keys().hasOnly([
+        'ownerUid', 'journalNo', 'sourceType', 'referenceNo', 'description',
+        'debitAccount', 'creditAccount', 'amount', 'branch', 'createdAt', 'updatedAt'
+      ])
+      && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+      && data.journalNo is string && data.journalNo.size() >= 3 && data.journalNo.size() <= 64
+      && data.sourceType in ['POS_SALE', 'RESTOCK', 'EXPENSE', 'TAX_PAYMENT', 'ADJUSTMENT']
+      && data.referenceNo is string && data.referenceNo.size() >= 1 && data.referenceNo.size() <= 64
+      && data.description is string && data.description.size() >= 1 && data.description.size() <= 300
+      && data.debitAccount is string && data.debitAccount.size() >= 1 && data.debitAccount.size() <= 120
+      && data.creditAccount is string && data.creditAccount.size() >= 1 && data.creditAccount.size() <= 120
+      && data.amount is number && data.amount >= 0
+      && data.branch is string && data.branch.size() >= 1 && data.branch.size() <= 64
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidStockMovement(data) {
+      return data.keys().hasAll([
+        'ownerUid', 'productId', 'sku', 'productName', 'movementType',
+        'warehouse', 'quantityDelta', 'unitCost', 'createdAt', 'updatedAt'
+      ]) && data.keys().hasOnly([
+        'ownerUid', 'productId', 'sku', 'productName', 'movementType',
+        'warehouse', 'quantityDelta', 'unitCost', 'note', 'createdAt', 'updatedAt'
+      ])
+      && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+      && data.productId is string && data.productId.size() >= 1 && data.productId.size() <= 64
+      && data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 64
+      && data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 200
+      && data.movementType in ['IN', 'OUT', 'TRANSFER', 'OPNAME']
+      && data.warehouse in ['Pusat Genteng', 'Cabang Rungkut', 'Gudang Sidoarjo']
+      && data.quantityDelta is int && data.quantityDelta >= -100000 && data.quantityDelta <= 100000
+      && data.unitCost is number && data.unitCost >= 0
+      && (!('note' in data) || (data.note is string && data.note.size() <= 300))
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidStoreSettings(data) {
+      return data.keys().hasAll([
+        'ownerUid', 'storeName', 'activeBranch', 'taxRatePercent',
+        'printerPaperWidth', 'autoPrintReceipt', 'autoWhatsappReceipt', 'costingMethod',
+        'createdAt', 'updatedAt'
+      ]) && data.keys().hasOnly([
+        'ownerUid', 'storeName', 'activeBranch', 'taxRatePercent',
+        'printerPaperWidth', 'autoPrintReceipt', 'autoWhatsappReceipt', 'costingMethod',
+        'createdAt', 'updatedAt'
+      ])
+      && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+      && data.storeName is string && data.storeName.size() >= 1 && data.storeName.size() <= 120
+      && data.activeBranch is string && data.activeBranch.size() >= 1 && data.activeBranch.size() <= 64
+      && data.taxRatePercent is number && data.taxRatePercent >= 0 && data.taxRatePercent <= 30
+      && data.printerPaperWidth in ['58mm', '80mm']
+      && data.autoPrintReceipt is bool
+      && data.autoWhatsappReceipt is bool
+      && data.costingMethod in ['FIFO', 'AVERAGE']
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    // Admin registry (read-only for verified users checking own status)
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && request.auth.uid == adminId;
+      allow list, write: if false;
+    }
+
+    // Connection test probe
+    match /test/{docId} {
+      allow get: if isSignedIn() && isValidId(docId);
+      allow list, write: if false;
+    }
+
+    // Products sync collection
+    match /pos_products/{productDocId} {
+      allow get: if isSignedIn() && isValidId(productDocId) && (isOwnerData(existing()) || isAdmin());
+      allow list: if isSignedIn() && (isOwnerData(resource.data) || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(productDocId)
+        && isValidProduct(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(productDocId)
+        && isValidProduct(incoming())
+        && (isOwnerData(existing()) || isAdmin())
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['price', 'costPrice', 'stockPusat', 'stockRungkut', 'stockSidoarjo', 'minStock', 'updatedAt'])
+        );
+      allow delete: if isVerifiedUser() && isValidId(productDocId) && (isOwnerData(existing()) || isAdmin());
+    }
+
+    // Transactions collection
+    match /pos_transactions/{txId} {
+      allow get: if isSignedIn() && isValidId(txId) && (isOwnerData(existing()) || isAdmin());
+      allow list: if isSignedIn() && (isOwnerData(resource.data) || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(txId)
+        && isValidTransaction(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(txId)
+        && isValidTransaction(incoming())
+        && (isOwnerData(existing()) || isAdmin())
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (existing().status != 'voided' && incoming().diff(existing()).affectedKeys().hasOnly(['whatsappSent', 'status', 'updatedAt']))
+        );
+      allow delete: if isAdmin() && isValidId(txId);
+    }
+
+    // Loyal customers collection (PII strictly owner/admin only)
+    match /pos_customers/{customerId} {
+      allow get: if isSignedIn() && isValidId(customerId) && (isOwnerData(existing()) || isAdmin());
+      allow list: if isSignedIn() && (isOwnerData(resource.data) || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(customerId)
+        && isValidCustomer(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(customerId)
+        && isValidCustomer(incoming())
+        && (isOwnerData(existing()) || isAdmin())
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'email', 'tier', 'points', 'totalSpent', 'visitCount', 'address', 'notes', 'updatedAt'])
+        );
+      allow delete: if isVerifiedUser() && isValidId(customerId) && (isOwnerData(existing()) || isAdmin());
+    }
+
+    // Accurate accounting journals
+    match /pos_journals/{journalId} {
+      allow get: if isSignedIn() && isValidId(journalId) && (isOwnerData(existing()) || isAdmin());
+      allow list: if isSignedIn() && (isOwnerData(resource.data) || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(journalId)
+        && isValidJournal(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin() && isValidId(journalId)
+        && isValidJournal(incoming())
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if isAdmin() && isValidId(journalId);
+    }
+
+    // Warehouse stock movements
+    match /pos_stock_movements/{movementId} {
+      allow get: if isSignedIn() && isValidId(movementId) && (isOwnerData(existing()) || isAdmin());
+      allow list: if isSignedIn() && (isOwnerData(resource.data) || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(movementId)
+        && isValidStockMovement(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update, delete: if isAdmin() && isValidId(movementId);
+    }
+
+    // Store settings
+    match /pos_settings/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(userId)
+        && userId == request.auth.uid
+        && isValidStoreSettings(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(userId)
+        && isValidStoreSettings(incoming())
+        && (request.auth.uid == userId || isAdmin())
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['storeName', 'activeBranch', 'taxRatePercent', 'printerPaperWidth', 'autoPrintReceipt', 'autoWhatsappReceipt', 'costingMethod', 'updatedAt'])
+        );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+  }
+}
